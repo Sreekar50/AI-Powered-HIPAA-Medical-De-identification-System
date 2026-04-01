@@ -28,7 +28,7 @@ A production-ready prototype that detects and redacts all 18 HIPAA Safe Harbor i
 ### 1. Clone and configure
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/Sreekar50/AI-Powered-HIPAA-Medical-De-identification-System
 cd hipaa-deidentify
 cp .env.example .env
 # Edit .env and set your GROQ_API_KEY
