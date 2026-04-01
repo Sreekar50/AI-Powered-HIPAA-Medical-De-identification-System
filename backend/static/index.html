@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>HIPAA De-identification System</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f1f5f9;--card:#fff;--primary:#2563eb;--primary-h:#1d4ed8;
+  --text:#1e293b;--muted:#64748b;--border:#e2e8f0;--r:10px;
+  --sh:0 1px 3px rgba(0,0,0,.08),0 4px 12px rgba(0,0,0,.04);
+  --green:#16a34a;--orange:#ea580c;--purple:#7c3aed;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:var(--primary);color:#fff;padding:14px 32px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(37,99,235,.35)}
+header h1{font-size:1.15rem;font-weight:700}
+header p{font-size:.75rem;opacity:.8;margin-top:2px}
+.badge{background:rgba(255,255,255,.2);border-radius:20px;padding:3px 12px;font-size:.72rem;font-weight:600}
+.model-tag{font-size:.68rem;background:rgba(255,255,255,.15);border-radius:4px;padding:1px 7px;margin-left:6px;vertical-align:middle}
+.nav-tabs{display:flex;gap:0;margin-left:auto}
+.nav-tab{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:none;padding:7px 20px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:.3px}
+.nav-tab:first-child{border-radius:8px 0 0 8px}
+.nav-tab:last-child{border-radius:0 8px 8px 0}
+.nav-tab.active{background:rgba(255,255,255,.95);color:var(--primary)}
+.nav-tab:hover:not(.active){background:rgba(255,255,255,.22)}
+main{max-width:1420px;margin:0 auto;padding:24px 20px}
+
+.upload-card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:28px}
+#drop-zone{border:2px dashed var(--border);border-radius:8px;padding:40px 24px;cursor:pointer;transition:all .2s;text-align:center}
+#drop-zone:hover,#drop-zone.drag-over{border-color:var(--primary);background:#eff6ff}
+#drop-zone p{color:var(--muted);font-size:.9rem}#drop-zone strong{color:var(--primary)}
+#file-input{display:none}
+#file-name{margin-top:10px;font-size:.85rem;color:var(--primary);font-weight:600;min-height:20px}
+.formats{font-size:.74rem;color:var(--muted);margin-top:6px}
+
+.options-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;align-items:center;justify-content:center}
+.toggle-group{display:flex;align-items:center;gap:8px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:.83rem;color:var(--text);cursor:pointer;transition:all .2s}
+.toggle-group:hover{border-color:var(--primary);background:#eff6ff}
+.toggle-group input[type=checkbox]{accent-color:var(--primary);width:15px;height:15px;cursor:pointer}
+.toggle-group .tg-label{font-weight:600}
+.toggle-group .tg-desc{font-size:.72rem;color:var(--muted)}
+.tg-badge{font-size:.65rem;background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:4px;padding:1px 6px;font-weight:700;margin-left:4px}
+.tg-badge.purple{background:#faf5ff;color:#7c3aed;border-color:#e9d5ff}
+
+#process-btn{margin-top:18px;background:var(--primary);color:#fff;border:none;border-radius:8px;padding:11px 34px;font-size:.93rem;font-weight:600;cursor:pointer;transition:background .2s;display:inline-flex;align-items:center;gap:8px}
+#process-btn:hover:not(:disabled){background:var(--primary-h)}
+#process-btn:disabled{opacity:.5;cursor:not-allowed}
+.spinner{width:17px;height:17px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#results{margin-top:22px;display:none}
+.mode-banner{border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:.82rem;display:flex;gap:10px;align-items:center;font-weight:500}
+.mode-banner.placeholder{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af}
+.mode-banner.synthetic{background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:16px 18px}
+.stat-card .lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600}
+.stat-card .val{font-size:1.9rem;font-weight:700;margin-top:3px;color:var(--primary);line-height:1}
+.stat-card .sub{font-size:.72rem;color:var(--muted);margin-top:3px}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+@media(max-width:800px){.panels{grid-template-columns:1fr}}
+.panel{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden}
+.ph{padding:11px 16px;font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.ph.orig{background:#fff7ed;color:#c2410c}.ph.red{background:#f0fdf4;color:#15803d}
+.ph.synth{background:#faf5ff;color:#6d28d9}
+.dot{width:7px;height:7px;border-radius:50%}
+.ph.orig .dot{background:#f97316}.ph.red .dot{background:#22c55e}.ph.synth .dot{background:#8b5cf6}
+.pb{padding:14px 16px;font-size:.8rem;line-height:1.8;white-space:pre-wrap;word-break:break-word;max-height:520px;overflow-y:auto;font-family:'Courier New',monospace;color:#334155}
+.cbtn{background:transparent;border:1px solid currentColor;border-radius:5px;padding:2px 9px;font-size:.68rem;cursor:pointer;opacity:.7;transition:opacity .15s}
+.cbtn:hover{opacity:1}
+.leg{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:16px 18px;margin-bottom:18px}
+.leg h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:10px;font-weight:700}
+.lg{display:flex;flex-wrap:wrap;gap:8px}
+.li{display:flex;align-items:center;gap:5px;font-size:.76rem;font-weight:500}
+.sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+.det{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:18px}
+.det h3{padding:12px 18px;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:.81rem}
+th{padding:9px 16px;text-align:left;background:#f8fafc;font-weight:600;font-size:.72rem;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:1px solid var(--border)}
+td{padding:9px 16px;border-bottom:1px solid var(--border);word-break:break-word;max-width:220px}
+tr:last-child td{border-bottom:none}
+.pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.7rem;font-weight:700;color:#1e293b;white-space:nowrap}
+.rv{color:var(--green);font-weight:600;font-family:monospace}
+.orig-val{color:#dc2626;font-family:monospace}
+#dl-btn{background:#16a34a;color:#fff;border:none;border-radius:8px;padding:9px 26px;font-size:.86rem;font-weight:600;cursor:pointer;transition:background .2s;display:inline-flex;align-items:center;gap:7px;margin-bottom:8px}
+#dl-btn:hover{background:#15803d}
+#err{display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:13px 16px;color:#dc2626;font-size:.86rem;margin-top:14px}
+
+
+#page-dashboard{display:none}
+.db-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.db-header h2{font-size:1.1rem;font-weight:700}
+.refresh-btn{background:#f1f5f9;border:1px solid var(--border);border-radius:7px;padding:7px 16px;font-size:.8rem;font-weight:600;cursor:pointer;transition:all .2s;color:var(--text)}
+.refresh-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+.db-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:24px}
+.db-stat{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:18px 20px}
+.db-stat .ds-lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:600}
+.db-stat .ds-val{font-size:2.2rem;font-weight:800;margin-top:4px;line-height:1}
+.db-stat .ds-sub{font-size:.72rem;color:var(--muted);margin-top:4px}
+.db-stat.blue .ds-val{color:#2563eb}
+.db-stat.red .ds-val{color:#dc2626}
+.db-stat.green .ds-val{color:#16a34a}
+.db-stat.purple .ds-val{color:#7c3aed}
+.db-charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:900px){.db-charts{grid-template-columns:1fr}}
+.chart-card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:20px;overflow:hidden}
+.chart-card h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;margin-bottom:16px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:.78rem}
+.bar-label{width:180px;color:var(--text);font-weight:500;flex-shrink:0;text-align:right;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+.bar-track{flex:1;background:#f1f5f9;border-radius:4px;height:20px;overflow:hidden}
+.bar-fill{height:100%;border-radius:4px;transition:width .6s ease;display:flex;align-items:center;padding-left:6px}
+.bar-fill span{font-size:.7rem;font-weight:700;color:#fff}
+.db-recent{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);overflow:hidden;margin-bottom:20px}
+.db-recent h3{padding:14px 20px;font-size:.75rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)}
+.db-empty{padding:40px;text-align:center;color:var(--muted);font-size:.9rem}
+.pie-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+#pie-svg{flex-shrink:0}
+.pie-legend{display:flex;flex-direction:column;gap:6px}
+.pie-leg-item{display:flex;align-items:center;gap:7px;font-size:.75rem}
+.pie-leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+<header>
+  <svg width="30" height="30" viewBox="0 0 32 32" fill="none"><rect width="32" height="32" rx="8" fill="rgba(255,255,255,.2)"/><path d="M16 7v18M7 16h18" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
+  <div>
+    <h1>HIPAA De-identification System <span class="model-tag">LLaMA-3.3-70B + Regex</span></h1>
+    <p>All 18 HIPAA Safe Harbor identifiers · Synthetic data generation · Compliance dashboard</p>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('upload')">⬆ De-identify</button>
+    <button class="nav-tab" onclick="showPage('dashboard')">📊 Dashboard</button>
+  </div>
+</header>
+
+<main>
+
+<div id="page-upload">
+  <div class="upload-card">
+    <div id="drop-zone">
+      <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:10px">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p><strong>Drop file here</strong> or <strong>click to browse</strong></p>
+      <p class="formats">PDF · PNG · JPG · TXT &nbsp;|&nbsp; Digital PDFs, scanned &amp; handwritten images supported</p>
+      <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tiff,.bmp,.txt,.webp"/>
+    </div>
+    <div id="file-name"></div>
+
+    <!-- Options -->
+    <div class="options-row">
+      <label class="toggle-group">
+        <input type="checkbox" id="opt-synthetic"/>
+        <div>
+          <span class="tg-label">Synthetic Data Mode</span>
+          <span class="tg-badge">BONUS</span>
+          <div class="tg-desc">Replace PHI with realistic fake names/dates instead of placeholders</div>
+        </div>
+      </label>
+      <label class="toggle-group">
+        <input type="checkbox" id="opt-handwriting"/>
+        <div>
+          <span class="tg-label">Handwriting OCR</span>
+          <span class="tg-badge purple">BONUS</span>
+          <div class="tg-desc">Enhanced preprocessing for handwritten text recognition</div>
+        </div>
+      </label>
+    </div>
+
+    <div style="text-align:center">
+      <button id="process-btn" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        De-identify Document
+      </button>
+    </div>
+    <div id="err"></div>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <div id="mode-banner" class="mode-banner placeholder">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="mode-text">Processed using HIPAA Safe Harbor method — placeholder redaction mode.</span>
+    </div>
+
+    <div class="stats-row" id="stats-row"></div>
+
+    <div class="panels">
+      <div class="panel">
+        <div class="ph orig"><span style="display:flex;align-items:center;gap:7px"><span class="dot"></span>Original (PHI highlighted)</span><button class="cbtn" onclick="cp('orig-p')">Copy</button></div>
+        <div class="pb" id="orig-p"></div>
+      </div>
+      <div class="panel" id="right-panel">
+        <div class="ph red" id="right-ph"><span style="display:flex;align-items:center;gap:7px"><span class="dot"></span><span id="right-ph-title">De-identified</span></span><button class="cbtn" onclick="cp('red-p')">Copy</button></div>
+        <div class="pb" id="red-p"></div>
+      </div>
+    </div>
+
+    <div class="leg"><h3>PHI Category Legend</h3><div class="lg" id="leg-grid"></div></div>
+
+    <button id="dl-btn">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Download Redacted Text
+    </button>
+
+    <div class="det" id="det-card"></div>
+  </div>
+</div>
+
+<div id="page-dashboard">
+  <div class="db-header">
+    <h2>📊 Compliance Dashboard</h2>
+    <button class="refresh-btn" onclick="loadDashboard()">↻ Refresh</button>
+  </div>
+  <div id="db-content"><div class="db-empty">Loading dashboard data…</div></div>
+</div>
+</main>
+
+<script>
+const PHI_COLORS = {
+  PATIENT_NAME:          '#ff6b6b',
+  DOCTOR_NAME:           '#ff9f43',
+  DATE:                  '#ffd93d',
+  PHONE_NUMBER:          '#74b9ff',
+  FAX_NUMBER:            '#74b9ff',
+  EMAIL_ADDRESS:         '#a29bfe',
+  URL:                   '#55efc4',
+  MEDICAL_RECORD_NUMBER: '#e17055',
+  SAMPLE_ID:             '#fd7272',
+  AGE:                   '#fd79a8',
+  ADDRESS:               '#6bcb77',
+  GEOGRAPHIC:            '#badc58',
+  ACCOUNT_NUMBER:        '#f9ca24',
+  LICENSE_NUMBER:        '#e056fd',
+  SSN:                   '#eb4d4b',
+};
+const PHI_LABELS = {
+  PATIENT_NAME:          'Patient Name',
+  DOCTOR_NAME:           'Doctor / Staff Name',
+  DATE:                  'Date',
+  PHONE_NUMBER:          'Phone Number',
+  FAX_NUMBER:            'Fax Number',
+  EMAIL_ADDRESS:         'Email Address',
+  URL:                   'URL / Website',
+  MEDICAL_RECORD_NUMBER: 'Medical Record Number',
+  SAMPLE_ID:             'Sample / Barcode ID',
+  AGE:                   'Age',
+  ADDRESS:               'Full Address',
+  GEOGRAPHIC:            'Geographic Location',
+  ACCOUNT_NUMBER:        'Account Number',
+  LICENSE_NUMBER:        'License Number',
+  SSN:                   'Social Security Number',
+};
+const PHI_REPLS = {
+  PATIENT_NAME:          '[PATIENT_NAME]',
+  DOCTOR_NAME:           '[DOCTOR_NAME]',
+  DATE:                  '[DATE]',
+  PHONE_NUMBER:          '[PHONE_NUMBER]',
+  FAX_NUMBER:            '[FAX_NUMBER]',
+  EMAIL_ADDRESS:         '[EMAIL]',
+  URL:                   '[URL]',
+  MEDICAL_RECORD_NUMBER: '[MEDICAL_RECORD_NO]',
+  SAMPLE_ID:             '[SAMPLE_ID]',
+  AGE:                   '[AGE]',
+  ADDRESS:               '[ADDRESS]',
+  GEOGRAPHIC:            '[LOCATION]',
+  ACCOUNT_NUMBER:        '[ACCOUNT_NO]',
+  LICENSE_NUMBER:        '[LICENSE_NO]',
+  SSN:                   '[SSN]',
+};
+
+let curRedacted = '';
+
+function showPage(page) {
+  document.getElementById('page-upload').style.display = page === 'upload' ? '' : 'none';
+  document.getElementById('page-dashboard').style.display = page === 'dashboard' ? '' : 'none';
+  document.querySelectorAll('.nav-tab').forEach((t,i) => t.classList.toggle('active', (i===0 && page==='upload') || (i===1 && page==='dashboard')));
+  if (page === 'dashboard') loadDashboard();
+}
+
+
+const dropZ = document.getElementById('drop-zone');
+const fInp  = document.getElementById('file-input');
+const pBtn  = document.getElementById('process-btn');
+
+dropZ.addEventListener('click', () => fInp.click());
+dropZ.addEventListener('dragover', e => { e.preventDefault(); dropZ.classList.add('drag-over'); });
+dropZ.addEventListener('dragleave', () => dropZ.classList.remove('drag-over'));
+dropZ.addEventListener('drop', e => { e.preventDefault(); dropZ.classList.remove('drag-over'); if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]); });
+fInp.addEventListener('change', () => fInp.files.length && setFile(fInp.files[0]));
+
+function setFile(f) {
+  document.getElementById('file-name').textContent = `📄 ${f.name}  (${(f.size/1024).toFixed(1)} KB)`;
+  pBtn.disabled = false; pBtn._f = f; hideErr();
+}
+
+pBtn.addEventListener('click', async () => {
+  const file = pBtn._f; if (!file) return;
+  const synthetic  = document.getElementById('opt-synthetic').checked;
+  const handwriting = document.getElementById('opt-handwriting').checked;
+  pBtn.disabled = true;
+  pBtn.innerHTML = '<div class="spinner"></div> Analysing…';
+  hideErr(); hideRes();
+  const fd = new FormData(); fd.append('file', file);
+  const url = `/deidentify?synthetic=${synthetic}&handwriting=${handwriting}`;
+  try {
+    const r = await fetch(url, { method: 'POST', body: fd });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.detail || r.statusText); }
+    render(await r.json(), synthetic);
+  } catch(e) { showErr('Error: ' + e.message); }
+  finally {
+    pBtn.disabled = false;
+    pBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> De-identify Document';
+  }
+});
+
+function render(data, synthetic) {
+  const r = data.report; curRedacted = data.redacted_text;
+  const cats = Object.keys(r.phi_by_category);
+
+  const banner = document.getElementById('mode-banner');
+  const modeText = document.getElementById('mode-text');
+  if (synthetic) {
+    banner.className = 'mode-banner synthetic';
+    modeText.textContent = '✨ Synthetic Data Mode — PHI replaced with realistic fake data to preserve clinical context.';
+  } else {
+    banner.className = 'mode-banner placeholder';
+    modeText.textContent = '🔒 Placeholder Mode — PHI replaced with neutral [PLACEHOLDER] tokens per HIPAA Safe Harbor.';
+  }
+
+  const rph = document.getElementById('right-ph');
+  if (synthetic) {
+    rph.className = 'ph synth';
+    document.getElementById('right-ph-title').textContent = 'Synthetic (context-preserved)';
+    rph.querySelector('.dot').style.background = '#8b5cf6';
+  } else {
+    rph.className = 'ph red';
+    document.getElementById('right-ph-title').textContent = 'De-identified';
+    rph.querySelector('.dot').style.background = '#22c55e';
+  }
+
+  document.getElementById('stats-row').innerHTML =
+    sc('PHI Removed', r.total_phi_detected, 'identifiers found') +
+    sc('Categories', cats.length, 'PHI types detected') +
+    sc('Chars Before', data.original_text.length, 'characters') +
+    sc('Chars After', data.redacted_text.length, 'characters');
+
+  document.getElementById('orig-p').innerHTML = data.highlighted_original;
+
+  let rh = esc(data.redacted_text);
+  if (!synthetic) {
+    Object.entries(PHI_REPLS).forEach(([t, ph]) => {
+      const c = PHI_COLORS[t] || '#dfe6e9';
+      rh = rh.replace(new RegExp(rx(esc(ph)), 'g'),
+        `<mark style="background:${c};padding:1px 5px;border-radius:3px;font-weight:700;">${esc(ph)}</mark>`);
+    });
+  }
+  document.getElementById('red-p').innerHTML = rh;
+
+  document.getElementById('leg-grid').innerHTML = cats.length
+    ? cats.map(c => `<div class="li"><span class="sw" style="background:${PHI_COLORS[c]||'#eee'}"></span><span>${PHI_LABELS[c]||c} (${r.phi_by_category[c]})</span></div>`).join('')
+    : '<span style="color:var(--muted)">No PHI detected.</span>';
+
+  const rows = cats.flatMap(cat =>
+    (r.details[cat]||[]).map(item => `<tr>
+      <td><span class="pill" style="background:${PHI_COLORS[cat]||'#eee'}">${cat.replace(/_/g,' ')}</span></td>
+      <td class="orig-val">${esc(item.value)}</td>
+      <td><span class="rv">${esc(item.replaced_by)}</span></td>
+    </tr>`)
+  ).join('');
+
+  document.getElementById('det-card').innerHTML =
+    `<h3>Audit Trail — ${r.total_phi_detected} PHI item(s) — ${new Date(r.processed_at).toLocaleString()}</h3>` +
+    (rows ? `<table><thead><tr><th>PHI Category</th><th>Original Value</th><th>Replaced With</th></tr></thead><tbody>${rows}</tbody></table>`
+           : '<p style="padding:16px;color:var(--muted)">No PHI detected.</p>');
+
+  showRes();
+}
+
+document.getElementById('dl-btn').addEventListener('click', () => {
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob([curRedacted], {type:'text/plain'})),
+    download: 'deidentified_report.txt'
+  }); a.click();
+});
+
+async function loadDashboard() {
+  const el = document.getElementById('db-content');
+  el.innerHTML = '<div class="db-empty">Loading…</div>';
+  try {
+    const r = await fetch('/dashboard');
+    const data = await r.json();
+    renderDashboard(data, el);
+  } catch(e) {
+    el.innerHTML = `<div class="db-empty">Could not load dashboard: ${e.message}</div>`;
+  }
+}
+
+function renderDashboard(data, el) {
+  const s = data.summary || {};
+  const entries = data.entries || [];
+  if (!entries.length) {
+    el.innerHTML = '<div class="db-empty">📋 No documents processed yet.<br><small>Upload and de-identify documents to populate the dashboard.</small></div>';
+    return;
+  }
+
+  const catTotals = s.category_totals || {};
+  const sortedCats = Object.entries(catTotals).sort((a,b) => b[1]-a[1]);
+  const maxVal = sortedCats.length ? sortedCats[0][1] : 1;
+
+  const statsHtml = `
+    <div class="db-stats">
+      <div class="db-stat blue"><div class="ds-lbl">Documents Processed</div><div class="ds-val">${s.total_documents||0}</div><div class="ds-sub">total uploads</div></div>
+      <div class="db-stat red"><div class="ds-lbl">Total PHI Detected</div><div class="ds-val">${s.total_phi_items||0}</div><div class="ds-sub">items redacted</div></div>
+      <div class="db-stat green"><div class="ds-lbl">PHI Categories</div><div class="ds-val">${Object.keys(catTotals).length}</div><div class="ds-sub">types found</div></div>
+      <div class="db-stat purple"><div class="ds-lbl">Avg PHI / Doc</div><div class="ds-val">${s.total_documents ? Math.round(s.total_phi_items/s.total_documents) : 0}</div><div class="ds-sub">per document</div></div>
+    </div>`;
+
+  const barRows = sortedCats.map(([cat,cnt]) => {
+    const pct = Math.round((cnt/maxVal)*100);
+    const color = PHI_COLORS[cat] || '#94a3b8';
+    return `<div class="bar-row">
+      <div class="bar-label">${PHI_LABELS[cat]||cat}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"><span>${cnt}</span></div></div>
+    </div>`;
+  }).join('');
+
+  const pieData = sortedCats.slice(0,8);
+  const total = pieData.reduce((s,[,v])=>s+v,0);
+  let pieHtml = '';
+  if (total > 0) {
+    let cumAngle = -Math.PI/2;
+    const cx=100, cy=100, r=80;
+    let slices='', legendItems='';
+    pieData.forEach(([cat,cnt],i) => {
+      const angle = (cnt/total)*2*Math.PI;
+      const x1=cx+r*Math.cos(cumAngle), y1=cy+r*Math.sin(cumAngle);
+      cumAngle+=angle;
+      const x2=cx+r*Math.cos(cumAngle), y2=cy+r*Math.sin(cumAngle);
+      const large=angle>Math.PI?1:0;
+      const color = PHI_COLORS[cat]||'#94a3b8';
+      slices+=`<path d="M${cx},${cy} L${x1.toFixed(1)},${y1.toFixed(1)} A${r},${r} 0 ${large},1 ${x2.toFixed(1)},${y2.toFixed(1)} Z" fill="${color}" stroke="#fff" stroke-width="1.5"/>`;
+      legendItems+=`<div class="pie-leg-item"><div class="pie-leg-dot" style="background:${color}"></div><span>${PHI_LABELS[cat]||cat}: ${cnt}</span></div>`;
+    });
+    pieHtml = `<div class="pie-wrap"><svg id="pie-svg" viewBox="0 0 200 200" width="180" height="180">${slices}</svg><div class="pie-legend">${legendItems}</div></div>`;
+  }
+
+  const recentRows = [...entries].reverse().slice(0,20).map(e => {
+    const cats = Object.entries(e.phi_by_category||{}).sort((a,b)=>b[1]-a[1]).slice(0,3)
+      .map(([c,n])=>`<span class="pill" style="background:${PHI_COLORS[c]||'#eee'};margin-right:3px">${c.replace(/_/g,' ')} ${n}</span>`).join('');
+    const mode = e.mode==='synthetic'
+      ? '<span style="color:#7c3aed;font-weight:700;font-size:.7rem">SYNTHETIC</span>'
+      : '<span style="color:#15803d;font-weight:700;font-size:.7rem">PLACEHOLDER</span>';
+    return `<tr>
+      <td style="font-family:monospace;color:var(--muted)">${e.id||''}</td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.filename||'')}</td>
+      <td>${new Date(e.processed_at).toLocaleString()}</td>
+      <td style="text-align:center;font-weight:700;color:#dc2626">${e.total_phi}</td>
+      <td>${cats}</td>
+      <td>${mode}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = statsHtml + `
+    <div class="db-charts">
+      <div class="chart-card"><h3>PHI Category Distribution</h3>${barRows||'<p style="color:var(--muted)">No data</p>'}</div>
+      <div class="chart-card"><h3>PHI Type Breakdown</h3>${pieHtml||'<p style="color:var(--muted)">No data</p>'}</div>
+    </div>
+    <div class="db-recent">
+      <h3>Recent Document Audit Log</h3>
+      ${recentRows ? `<table><thead><tr><th>ID</th><th>Filename</th><th>Processed At</th><th>PHI Count</th><th>Top Categories</th><th>Mode</th></tr></thead><tbody>${recentRows}</tbody></table>` : '<div class="db-empty">No entries yet.</div>'}
+    </div>`;
+}
+
+function cp(id) { navigator.clipboard.writeText(document.getElementById(id).innerText).catch(()=>{}); }
+function sc(l,v,s) { return `<div class="stat-card"><div class="lbl">${l}</div><div class="val">${v}</div><div class="sub">${s}</div></div>`; }
+function showRes()  { document.getElementById('results').style.display='block'; }
+function hideRes()  { document.getElementById('results').style.display='none'; }
+function showErr(m) { const b=document.getElementById('err'); b.style.display='block'; b.textContent=m; }
+function hideErr()  { document.getElementById('err').style.display='none'; }
+function esc(s)     { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function rx(s)      { return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+</script>
+</body>
+</html>
