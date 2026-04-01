@@ -150,23 +150,6 @@ The LLM handles complex contextual cases, but a regex layer runs afterward on th
 
 \---
 
-## Project Structure
-
-```
-hipaa-deidentify/
-├── main.py              # FastAPI backend + all logic
-├── static/
-│   └── index.html       # Frontend UI (upload + dashboard)
-├── audit\_store/
-│   └── cumulative\_audit.json   # Persistent audit log (Docker volume)
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
-├── .env.example
-└── README.md
-```
-
-\---
 
 ## Compliance Notes
 
